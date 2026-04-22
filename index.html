@@ -190,6 +190,15 @@
   .toast.ok{border-color:var(--go)}
   .toast.err{border-color:var(--warn)}
 
+  .btn-subtype{
+    flex:1;padding:22px 10px;border:none;border-radius:12px;font-family:inherit;
+    font-size:18px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+  }
+  .btn-subtype .sub-kg{font-size:12px;font-weight:600;letter-spacing:1px;opacity:0.75}
+  .btn-brita{background:linear-gradient(135deg,#e6b320,#8b6914);color:#2a1e00}
+  .btn-bloco{background:linear-gradient(135deg,#5a8a3a,#2a5a1a);color:#fff}
+
   @keyframes slidein{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
   @keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
   @keyframes fadein{from{opacity:0}to{opacity:1}}
@@ -350,8 +359,14 @@
       lastEl.classList.add('show');
       document.getElementById('lastImg').src = last.dataUrl;
       const tag = document.getElementById('lastTag');
-      tag.textContent = last.type === 'esteril' ? 'Estéril' : 'Minério';
-      tag.className = 'last-tag ' + (last.type === 'esteril' ? 'waste':'ore');
+      if(last.type === 'esteril'){
+        tag.textContent = 'Estéril';
+        tag.className = 'last-tag waste';
+      } else {
+        const sub = last.subtype === 'brita' ? 'Brita' : last.subtype === 'bloco' ? 'Bloco' : 'Minério';
+        tag.textContent = sub;
+        tag.className = 'last-tag ore';
+      }
       document.getElementById('lastTime').textContent = fmtTime(new Date(last.ts));
     } else {
       lastEl.classList.remove('show');
@@ -397,7 +412,42 @@
       editOp();
       return;
     }
-    pending = type;
+    if(type === 'minerio'){
+      openSubtypeModal();
+    } else {
+      pending = { type };
+      document.getElementById('fileIn').click();
+    }
+  }
+
+  function openSubtypeModal(){
+    const html = `
+      <div class="modal-bg" id="mbg" onclick="if(event.target.id==='mbg')closeModal()">
+        <div class="modal">
+          <div class="modal-handle"></div>
+          <h2>Tipo de Minério</h2>
+          <div style="display:flex;gap:12px;margin-bottom:16px">
+            <button class="btn-subtype btn-brita" onclick="confirmSubtype('brita')">
+              Brita
+              <span class="sub-kg">1.280 kg</span>
+            </button>
+            <button class="btn-subtype btn-bloco" onclick="confirmSubtype('bloco')">
+              Bloco
+              <span class="sub-kg">1.150 kg</span>
+            </button>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-no" style="flex:1;padding:14px;border:none;border-radius:10px;font-family:inherit;font-size:15px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;background:var(--panel-2);color:var(--ink)" onclick="closeModal()">Cancelar</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  function confirmSubtype(subtype){
+    closeModal();
+    const peso = subtype === 'brita' ? 1280 : 1150;
+    pending = { type: 'minerio', subtype, peso };
     document.getElementById('fileIn').click();
   }
 
@@ -407,12 +457,24 @@
     if(!file || !pending) return;
     try{
       const dataUrl = await compress(file);
-      const photo = { id: Date.now(), type: pending, ts: new Date().toISOString(), dataUrl };
+      const photo = {
+        id: Date.now(),
+        type: pending.type,
+        subtype: pending.subtype || null,
+        peso: pending.peso || null,
+        ts: new Date().toISOString(),
+        dataUrl
+      };
       state.photos.push(photo);
       await savePhoto(photo);
       await saveMeta();
       render();
-      toast(pending === 'esteril' ? 'Estéril registrado' : 'Minério registrado', 'ok');
+      if(pending.type === 'esteril'){
+        toast('Estéril registrado', 'ok');
+      } else {
+        const label = pending.subtype === 'brita' ? 'Brita (1.280 kg)' : 'Bloco (1.150 kg)';
+        toast('Minério registrado · ' + label, 'ok');
+      }
     }catch(err){
       console.error(err);
       toast('Erro ao processar foto', 'err');
@@ -481,6 +543,8 @@
       ws.columns = [
         { header:'Nº',       key:'n',   width:6 },
         { header:'Tipo',     key:'t',   width:14 },
+        { header:'Subtipo',  key:'s',   width:12 },
+        { header:'Peso (kg)',key:'p',   width:12 },
         { header:'Data',     key:'d',   width:14 },
         { header:'Hora',     key:'h',   width:10 },
         { header:'Catador',  key:'o',   width:26 },
@@ -500,6 +564,8 @@
         const row = ws.addRow({
           n: i+1,
           t: p.type === 'esteril' ? 'Estéril' : 'Minério',
+          s: p.type === 'esteril' ? '—' : (p.subtype === 'brita' ? 'Brita' : 'Bloco'),
+          p: p.type === 'esteril' ? '—' : (p.peso || (p.subtype === 'brita' ? 1280 : 1150)),
           d: d.toLocaleDateString('pt-BR'),
           h: d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }),
           o: state.operator,
@@ -508,7 +574,7 @@
         row.height = 120;
         row.alignment = { vertical:'middle', horizontal:'left' };
         const fill = p.type === 'esteril' ? 'FFEFEFEF' : 'FFFFF1C8';
-        for(let c=1; c<=6; c++){
+        for(let c=1; c<=8; c++){
           row.getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:fill} };
           row.getCell(c).border = {
             top:{style:'thin',color:{argb:'FFCCCCCC'}},
@@ -522,7 +588,7 @@
           const b64 = p.dataUrl.split(',')[1];
           const imgId = wb.addImage({ base64: b64, extension:'jpeg' });
           ws.addImage(imgId, {
-            tl: { col:5.1, row: row.number - 1 + 0.05 },
+            tl: { col:7.1, row: row.number - 1 + 0.05 },
             ext: { width: 180, height: 135 }
           });
         }catch(e){}
@@ -533,16 +599,33 @@
       sumRow.height = 26;
       const countE = photos.filter(p=>p.type==='esteril').length;
       const countM = photos.filter(p=>p.type==='minerio').length;
+      const totalPeso = photos.filter(p=>p.type==='minerio').reduce((acc,p)=> acc + (p.peso || (p.subtype==='brita'?1280:1150)), 0);
       sumRow.getCell(1).value = 'TOTAL';
       sumRow.getCell(2).value = `${countE} Estéril`;
       sumRow.getCell(3).value = `${countM} Minério`;
-      sumRow.getCell(4).value = photos.length;
-      sumRow.getCell(5).value = state.operator;
-      for(let c=1; c<=6; c++){
+      sumRow.getCell(4).value = totalPeso + ' kg';
+      sumRow.getCell(5).value = photos.length + ' registros';
+      sumRow.getCell(7).value = state.operator;
+      for(let c=1; c<=8; c++){
         sumRow.getCell(c).font = { bold:true, color:{argb:'FFFFFFFF'} };
         sumRow.getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1A1A1A'} };
         sumRow.getCell(c).alignment = { vertical:'middle', horizontal:'center' };
       }
+
+      // proteção da planilha (impede edição sem senha)
+      await ws.protect('coleta_minerio_esteril', {
+        selectLockedCells: true,
+        selectUnlockedCells: true,
+        formatCells: false,
+        formatColumns: false,
+        formatRows: false,
+        insertRows: false,
+        insertColumns: false,
+        deleteRows: false,
+        deleteColumns: false,
+        sort: false,
+        autoFilter: false,
+      });
 
       const buf = await wb.xlsx.writeBuffer();
       const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
