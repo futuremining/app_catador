@@ -597,20 +597,58 @@
       // summary
       const sumRow = ws.addRow({});
       sumRow.height = 26;
-      const countE = photos.filter(p=>p.type==='esteril').length;
-      const countM = photos.filter(p=>p.type==='minerio').length;
-      const totalPeso = photos.filter(p=>p.type==='minerio').reduce((acc,p)=> acc + (p.peso || (p.subtype==='brita'?1280:1150)), 0);
-      sumRow.getCell(1).value = 'TOTAL';
-      sumRow.getCell(2).value = `${countE} Estéril`;
-      sumRow.getCell(3).value = `${countM} Minério`;
-      sumRow.getCell(4).value = totalPeso + ' kg';
-      sumRow.getCell(5).value = photos.length + ' registros';
-      sumRow.getCell(7).value = state.operator;
-      for(let c=1; c<=8; c++){
-        sumRow.getCell(c).font = { bold:true, color:{argb:'FFFFFFFF'} };
-        sumRow.getCell(c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1A1A1A'} };
-        sumRow.getCell(c).alignment = { vertical:'middle', horizontal:'center' };
+      const countE    = photos.filter(p=>p.type==='esteril').length;
+      const countBrita= photos.filter(p=>p.type==='minerio'&&p.subtype==='brita').length;
+      const countBloco= photos.filter(p=>p.type==='minerio'&&p.subtype==='bloco').length;
+      const pesoBrita = countBrita * 1280;
+      const pesoBloco = countBloco * 1150;
+      const pesoTotal = pesoBrita + pesoBloco;
+
+      function styleSum(row, cor){
+        for(let c=1;c<=8;c++){
+          row.getCell(c).font={bold:true,color:{argb:'FFFFFFFF'}};
+          row.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:cor}};
+          row.getCell(c).alignment={vertical:'middle',horizontal:'center'};
+        }
+        row.height=22;
       }
+
+      // linha: Estéril
+      sumRow.getCell(1).value='TOTAIS';
+      sumRow.getCell(2).value='Estéril';
+      sumRow.getCell(3).value='—';
+      sumRow.getCell(4).value='—';
+      sumRow.getCell(5).value=countE+' registros';
+      sumRow.getCell(7).value=state.operator;
+      styleSum(sumRow,'FF3a3a3a');
+
+      // linha: Brita
+      const britaRow = ws.addRow({});
+      britaRow.getCell(1).value='';
+      britaRow.getCell(2).value='Minério';
+      britaRow.getCell(3).value='Brita';
+      britaRow.getCell(4).value=pesoBrita+' kg';
+      britaRow.getCell(5).value=countBrita+' registros';
+      styleSum(britaRow,'FF7a5a0c');
+
+      // linha: Bloco
+      const blocoRow = ws.addRow({});
+      blocoRow.getCell(1).value='';
+      blocoRow.getCell(2).value='Minério';
+      blocoRow.getCell(3).value='Bloco';
+      blocoRow.getCell(4).value=pesoBloco+' kg';
+      blocoRow.getCell(5).value=countBloco+' registros';
+      styleSum(blocoRow,'FF2d5a1a');
+
+      // linha: Total geral
+      const totalRow = ws.addRow({});
+      totalRow.getCell(1).value='TOTAL';
+      totalRow.getCell(2).value=(countBrita+countBloco)+' Minério';
+      totalRow.getCell(3).value=countE+' Estéril';
+      totalRow.getCell(4).value=pesoTotal+' kg';
+      totalRow.getCell(5).value=photos.length+' registros';
+      totalRow.getCell(7).value=state.operator;
+      styleSum(totalRow,'FF1A1A1A');
 
       // proteção da planilha (impede edição sem senha)
       await ws.protect('coleta_minerio_esteril', {
