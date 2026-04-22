@@ -64,6 +64,7 @@
   .btn-edit:active{background:var(--panel-2)}
 
   .counters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}
+  .counter-sub{font-size:10px;letter-spacing:1.5px;color:var(--mute);text-transform:uppercase;font-weight:700;margin-top:4px}
   .counter{
     background:var(--panel);border:1px solid var(--line);border-radius:14px;
     padding:16px 14px;position:relative;overflow:hidden;
@@ -229,11 +230,12 @@
   <div class="counters">
     <div class="counter waste">
       <div class="counter-label">Estéril</div>
-      <div class="counter-value" id="cE">0</div>
+      <div class="counter-value" id="cE">00</div>
     </div>
     <div class="counter ore">
       <div class="counter-label">Minério</div>
-      <div class="counter-value" id="cM">0</div>
+      <div class="counter-value" id="cM">00</div>
+      <div class="counter-sub">Brita: <span id="cBrita">0</span> · Bloco: <span id="cBloco">0</span></div>
     </div>
   </div>
 
@@ -348,10 +350,14 @@
       opEl.textContent = 'não informado';
       opEl.classList.add('empty');
     }
-    const e = state.photos.filter(p=>p.type==='esteril').length;
-    const m = state.photos.filter(p=>p.type==='minerio').length;
-    document.getElementById('cE').textContent = String(e).padStart(2,'0');
-    document.getElementById('cM').textContent = String(m).padStart(2,'0');
+    const e      = state.photos.filter(p=>p.type==='esteril').length;
+    const m      = state.photos.filter(p=>p.type==='minerio').length;
+    const brita  = state.photos.filter(p=>p.type==='minerio'&&p.subtype==='brita').length;
+    const bloco  = state.photos.filter(p=>p.type==='minerio'&&p.subtype==='bloco').length;
+    document.getElementById('cE').textContent     = String(e).padStart(2,'0');
+    document.getElementById('cM').textContent     = String(m).padStart(2,'0');
+    document.getElementById('cBrita').textContent = brita;
+    document.getElementById('cBloco').textContent = bloco;
 
     const last = state.photos[state.photos.length-1];
     const lastEl = document.getElementById('last');
